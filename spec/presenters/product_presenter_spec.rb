@@ -123,6 +123,7 @@ describe ProductPresenter do
             free_trial: nil,
             is_quantity_enabled: false,
             is_multiseat_license: false,
+            hide_sold_out_variants: false,
             native_type: "digital",
             is_stream_only: false,
             streamable: false,
@@ -154,7 +155,6 @@ describe ProductPresenter do
             created_at: purchase.created_at,
             membership: nil,
             review: nil,
-            video_reviews_enabled: false,
             should_show_receipt: true,
             is_gift_receiver_purchase: false,
             show_view_content_button_on_product_page: false,
@@ -266,6 +266,7 @@ describe ProductPresenter do
             quantity_enabled: true,
             can_enable_quantity: true,
             should_show_sales_count: true,
+            hide_sold_out_variants: false,
             is_epublication: false,
             product_refund_policy_enabled: false,
             section_ids: [profile_section.external_id],
@@ -478,6 +479,7 @@ describe ProductPresenter do
               quantity_enabled: false,
               can_enable_quantity: false,
               should_show_sales_count: false,
+              hide_sold_out_variants: false,
               is_epublication: false,
               product_refund_policy_enabled: false,
               refund_policy: {
@@ -725,6 +727,7 @@ describe ProductPresenter do
               quantity_enabled: false,
               can_enable_quantity: true,
               should_show_sales_count: false,
+              hide_sold_out_variants: false,
               is_epublication: false,
               product_refund_policy_enabled: false,
               section_ids: [],
@@ -879,6 +882,20 @@ describe ProductPresenter do
 
     it "returns properties from the card presenter" do
       expect(described_class.card_for_web(product:, request:, recommended_by: "discover")).to eq(ProductPresenter::Card.new(product:).for_web(request:, recommended_by: "discover"))
+    end
+
+    it "passes compute_description parameter to the card presenter" do
+      expect(ProductPresenter::Card).to receive(:new).with(product:).and_call_original
+      expect_any_instance_of(ProductPresenter::Card).to receive(:for_web).with(request:, recommended_by: "discover", recommender_model_name: nil, target: nil, show_seller: true, affiliate_id: nil, query: nil, compute_description: false)
+
+      described_class.card_for_web(product:, request:, recommended_by: "discover", compute_description: false)
+    end
+
+    it "defaults compute_description to true when not provided" do
+      expect(ProductPresenter::Card).to receive(:new).with(product:).and_call_original
+      expect_any_instance_of(ProductPresenter::Card).to receive(:for_web).with(request:, recommended_by: "discover", recommender_model_name: nil, target: nil, show_seller: true, affiliate_id: nil, query: nil, compute_description: true)
+
+      described_class.card_for_web(product:, request:, recommended_by: "discover")
     end
   end
 

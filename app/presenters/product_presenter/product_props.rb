@@ -46,6 +46,7 @@ class ProductPresenter::ProductProps
         is_physical: product.is_physical,
         custom_view_content_button_text: product.custom_view_content_button_text.presence,
         is_multiseat_license: product.is_tiered_membership && product.is_multiseat_license,
+        hide_sold_out_variants: product.hide_sold_out_variants?,
         native_type: product.native_type,
         preorder: product.is_in_preorder_state ? { release_date: product.preorder_link.release_at } : nil,
         duration_in_months: product.duration_in_months,
@@ -114,14 +115,13 @@ class ProductPresenter::ProductProps
         content_url: purchase_info[:content_url],
         subscription_has_lapsed: purchase_info[:subscription_has_lapsed],
         membership: purchase_info[:membership],
-        video_reviews_enabled: seller.video_reviews_enabled?,
       }
     end
 
     def attributes_props
-      product.custom_attributes.filter_map { |attr|
+      product.custom_attributes.filter_map do |attr|
         { name: attr["name"], value: attr["value"] } if attr["name"].present? || attr["value"].present?
-      } + product.file_info_for_product_page.map { |k, v| { name: k.to_s, value: v } }
+      end + product.file_info_for_product_page.map { |k, v| { name: k.to_s, value: v } }
     end
 
     def collaborator

@@ -4,15 +4,8 @@ module Product::Validations
   include ActionView::Helpers::TextHelper
 
   MAX_VIEW_CONTENT_BUTTON_TEXT_LENGTH = 26
-  CUSTOM_FIELD_TYPES = %w[text terms checkbox].freeze
 
   private
-    def preview_url_https
-      return if preview_url.blank?
-
-      errors.add(:base, "Sorry, the product must have a secure (https) preview URL.") unless URI(URI::DEFAULT_PARSER.escape(preview_url).gsub("[", "%5B").gsub("]", "%5D")).is_a?(URI::HTTPS)
-    end
-
     def max_purchase_count_is_greater_than_or_equal_to_inventory_sold
       return unless max_purchase_count_changed?
       return if max_purchase_count.nil?
@@ -56,6 +49,14 @@ module Product::Validations
       return unless BundleProduct.alive.where(product: self).exists?
 
       errors.add(:base, "This product cannot be converted to a bundle because it is already part of a bundle.")
+    end
+
+    def published_bundle_must_have_at_least_one_product
+      return unless published?
+      return if not_is_bundle?
+      return if bundle_products.alive.exists?
+
+      errors.add(:base, "Bundles must have at least one product.")
     end
 
     def user_is_eligible_for_service_products

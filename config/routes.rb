@@ -146,8 +146,9 @@ Rails.application.routes.draw do
   end
 
   constraints DiscoverDomainConstraint do
-    get "/", to: "discover#index", as: :discover
+    get "/", to: "home#about"
 
+    get "/discover", to: "discover#index"
     get "/discover/recommended_products", to: "discover#recommended_products", as: :discover_recommended_products
     namespace :discover do
       resources :recommended_wishlists, only: [:index]
@@ -156,7 +157,7 @@ Rails.application.routes.draw do
     product_info_and_purchase_routes
 
     constraints DiscoverTaxonomyConstraint do
-      get "/*taxonomy", to: "discover#index"
+      get "/*taxonomy", to: "discover#index", as: :discover_taxonomy
     end
 
     get "/animation(*path)", to: redirect { |_, req| req.fullpath.sub("animation", "3d") }
@@ -243,6 +244,7 @@ Rails.application.routes.draw do
             collection do
               post :refund_last_purchase
               post :resend_last_receipt
+              post :resend_all_receipts
               post :resend_receipt_by_number
               post :search
               post :reassign_purchases
@@ -277,7 +279,24 @@ Rails.application.routes.draw do
     get "/terms", to: "home#terms"
     get "/prohibited", to: "home#prohibited"
     get "/privacy", to: "home#privacy"
-    get "/taxes", to: "home#taxes"
+    get "/taxes", to: redirect("/pricing", status: 301)
+    get "/hackathon", to: "home#hackathon"
+    get "/small-bets", to: "home#small_bets"
+    resource :github_stars, only: [:show]
+
+    namespace :gumroad_blog, path: "blog" do
+      root to: "posts#index"
+      resources :posts, only: [:index, :show], param: :slug, path: "p"
+    end
+
+    namespace :help_center, path: "help" do
+      root to: "articles#index"
+
+      # Custom singular `path` name for backwards compatibility with old routes
+      # for SEO.
+      resources :articles, only: [:index, :show], param: :slug, path: "article"
+      resources :categories, only: [:show], param: :slug, path: "category"
+    end
 
     get "/ifttt/v1/status" => "api/v2/users#ifttt_status"
     get "/ifttt/v1/oauth2/authorize/:code(.:format)" => "oauth/authorizations#show"
@@ -390,19 +409,7 @@ Rails.application.routes.draw do
 
     resources :tags, only: [:index]
 
-    namespace :admin do
-      get "/", to: "base#index"
-      get :impersonate, to: "base#impersonate"
-      delete :unimpersonate, to: "base#unimpersonate"
-      get :redirect_to_stripe_dashboard, to: "base#redirect_to_stripe_dashboard"
-      get "helper_actions/impersonate/:user_id", to: "helper_actions#impersonate", as: :impersonate_helper_action
-      get "helper_actions/stripe_dashboard/:user_id", to: "helper_actions#stripe_dashboard", as: :stripe_dashboard_helper_action
-
-      constraints(lambda { |request| request.env["warden"].authenticate? && request.env["warden"].user.is_team_member? }) do
-        mount SidekiqWebCSP.new(Sidekiq::Web) => :sidekiq, as: :sidekiq_web
-        mount FlipperCSP.new(Flipper::UI.app(Flipper)) => :features, as: :flipper_ui
-      end
-    end
+    draw(:admin)
 
     post "/settings/store_facebook_token", to: "users/oauth#async_facebook_store_token", as: :ajax_facebook_access_token
 
@@ -623,7 +630,7 @@ Rails.application.routes.draw do
     resources :product_duplicates, only: [:create, :show], format: :json
     put "/product_reviews/set", to: "product_reviews#set", format: :json
     resources :product_reviews, only: [:index, :show]
-    resource :product_review_response, only: [:update], format: :json
+    resources :product_review_responses, only: [:update, :destroy], format: :json
     resources :product_review_videos, only: [] do
       scope module: :product_review_videos do
         resource :stream, only: [:show]
@@ -943,6 +950,7 @@ Rails.application.routes.draw do
     get "/CHARGE" => redirect("/charge")
 
     # discover
+    get "/discover", to: "discover#index"
     get "/discover/categories",          to: "discover#categories"
     get "/discover_search_autocomplete", to: "discover/search_autocomplete#search"
 
@@ -961,6 +969,10 @@ Rails.application.routes.draw do
     post "/sns-aws-config-webhook", to: "foreign_webhooks#sns_aws_config"
     post "/grmc-webhook", to: "foreign_webhooks#grmc"
     post "/resend-webhook", to: "foreign_webhooks#resend"
+
+    # secure redirect
+    get "/secure_url_redirect", to: "secure_redirect#new", as: :secure_url_redirect
+    post "/secure_url_redirect", to: "secure_redirect#create"
 
     # TODO (chris): review and replace usage of routes below with UserCustomDomainConstraint routes
     get "/:username", to: "users#show", as: "user"
@@ -1111,7 +1123,7 @@ Rails.application.routes.draw do
   put "/product_reviews/set", to: "product_reviews#set", format: :json
 
   resources :product_reviews, only: [:index, :show]
-  resource :product_review_response, only: [:update], format: :json
+  resources :product_review_responses, only: [:update, :destroy], format: :json
   resources :product_review_videos, only: [] do
     scope module: :product_review_videos do
       resource :stream, only: [:show]

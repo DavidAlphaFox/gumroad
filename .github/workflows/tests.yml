@@ -2,8 +2,6 @@ name: Tests
 
 on:
   push:
-    branches:
-      - "**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -89,7 +87,7 @@ jobs:
             config/credentials.yml.enc
             config/certs/development_com.GRD.iOSCreator.pem
             config/certs/production_com.GRD.iOSCreator.pem
-          key: s3-files-${{ hashFiles('**/*.mmdb', '**/credentials.yml.enc', '**/development_com.GRD.iOSCreator.pem') }}-test
+          key: s3-files-${{ hashFiles('**/*.mmdb', '**/credentials.yml.enc', '**/development_com.GRD.iOSCreator.pem') }}-2025-06-17
       - name: Download files from S3
         if: steps.cache-s3-files.outputs.cache-hit != 'true'
         run: |

@@ -13,6 +13,7 @@ module User::Risk
   ].freeze
   PROBATION_WITH_REMINDER_DAYS = 30
   PROBATION_REVIEW_DAYS = 2
+  MAX_REFUND_QUEUE_SIZE = 1000
 
   def self.contact_iffy_risk_analysis(iffy_request_parameters)
     return nil unless Rails.env.production?
@@ -115,6 +116,13 @@ module User::Risk
     BlockedObject.unblock!(last_sign_in_ip) if last_sign_in_ip.present?
   end
 
+  def delete_custom_domain!
+    return if custom_domain.nil?
+    return if custom_domain.deleted?
+
+    custom_domain.mark_deleted!
+  end
+
   def suspended?
     suspended_for_tos_violation? || suspended_for_fraud?
   end
@@ -195,5 +203,22 @@ module User::Risk
       else
         PAYOUTS_STATUS_PAYABLE
       end
+  end
+
+  class_methods do
+    def refund_queue(from_date = 7.days.ago)
+      user_ids = MONGO_DATABASE[MongoCollections::USER_SUSPENSION_TIME]
+        .find(suspended_at: { "$gte": from_date.utc })
+        .limit(MAX_REFUND_QUEUE_SIZE)
+        .map { |record| record["user_id"] }
+
+      User.where(id: user_ids, user_risk_state: "suspended_for_fraud")
+        .joins(:balances)
+        .merge(Balance.unpaid)
+        .group(:user_id)
+        .having("SUM(amount_cents) > 0")
+        .order(updated_at: :desc)
+        .limit(MAX_REFUND_QUEUE_SIZE)
+    end
   end
 end

@@ -62,14 +62,15 @@ describe("Product Edit Previews", type: :feature, js: true) do
     visit edit_link_path(product.unique_permalink)
 
     click_on "Add version"
-
     within version_rows[0] do
       fill_in "Version name", with: "Version 1"
     end
+
     click_on "Add version"
     within version_rows[0] do
       within version_option_rows[1] do
-        fill_in "Version name", with: "A"
+        fill_in "Version name", with: "Version 2"
+        fill_in "Maximum number of purchases", with: 0
       end
     end
 
@@ -79,11 +80,18 @@ describe("Product Edit Previews", type: :feature, js: true) do
         expect(page).to_not have_text("$1+")
         expect(page).to_not have_text("a month")
       end
-      within find(:radio_button, "A") do
+      within find(:radio_button, "Version 2", disabled: true) do
         expect(page).to have_text("$1")
         expect(page).to_not have_text("$1+")
         expect(page).to_not have_text("a month")
+        expect(page).to have_text("0 left")
       end
+    end
+
+    check "Hide sold out versions"
+    in_preview do
+      expect(page).to have_radio_button("Version 1", disabled: false)
+      expect(page).to_not have_radio_button("Version 2")
     end
   end
 
@@ -211,10 +219,7 @@ describe("Product Edit Previews", type: :feature, js: true) do
     it_behaves_like "displaying collaborator"
 
     context "that is a bundle" do
-      before do
-        product.update!(is_bundle: true)
-        create_list(:bundle_product, 2, bundle: product)
-      end
+      let(:product) { create(:product, :bundle, user: seller) }
 
       it_behaves_like "displaying collaborator"
     end

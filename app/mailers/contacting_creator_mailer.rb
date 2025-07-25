@@ -74,7 +74,7 @@ class ContactingCreatorMailer < ApplicationMailer
 
     @buyer_name = @purchase.try(:full_name)
     @seller = @product.user
-    @unsub_link = user_unsubscribe_url(id: @seller.external_id, email_type: :notify)
+    @unsub_link = user_unsubscribe_url(id: @seller.secure_external_id(scope: "email_unsubscribe"), email_type: :notify)
     @reply_to = @purchase.try(:email)
 
     set_notify_of_sale_headers(is_preorder:)
@@ -127,7 +127,7 @@ class ContactingCreatorMailer < ApplicationMailer
     @seller = User.find_by(id: user_id)
     return unless @seller
 
-    @unsub_link = user_unsubscribe_url(id: @seller.external_id, email_type: :product_update)
+    @unsub_link = user_unsubscribe_url(id: @seller.secure_external_id(scope: "email_unsubscribe"), email_type: :product_update)
     @sales_count = @seller.sales.successful.count
     @subject = "Please add a payment account to Gumroad."
   end
@@ -142,7 +142,7 @@ class ContactingCreatorMailer < ApplicationMailer
     @end_of_period = Date.today.beginning_of_week(:sunday).to_datetime
     @start_of_period = @end_of_period - 7.days
     @seller = User.find(user_id)
-    @unsub_link = user_unsubscribe_url(id: @seller.external_id, email_type: :seller_update)
+    @unsub_link = user_unsubscribe_url(id: @seller.secure_external_id(scope: "email_unsubscribe"), email_type: :seller_update)
     @subject = "Your last week."
   end
 
@@ -513,6 +513,13 @@ class ContactingCreatorMailer < ApplicationMailer
     @subject = "Important: Upcoming refund policy changes effective January 1, 2025"
   end
 
+  def ping_endpoint_failure(user_id, ping_url, response_code)
+    @seller = User.find(user_id)
+    @ping_url = redact_ping_url(ping_url)
+    @response_code = response_code
+    @subject = "Webhook ping endpoint delivery failed"
+  end
+
   private
     def do_not_send
       @do_not_send = true
@@ -565,5 +572,37 @@ class ContactingCreatorMailer < ApplicationMailer
       if Feature.active?(:send_sales_notifications_to_consumer_app)
         PushNotificationWorker.perform_async(@seller.id, Device::APP_TYPES[:consumer], @subject, nil, {}, Device::NOTIFICATION_SOUNDS[:sale])
       end
+    end
+
+    def redact_ping_url(url)
+      uri = URI.parse(url)
+
+      # --- build the host portion (scheme + host + optional port) ----------
+      host_part  = "#{uri.scheme}://#{uri.host}"
+      host_part += ":#{uri.port}" if uri.port && uri.port != uri.default_port
+
+      # --- collect the part we want to redact ------------------------------
+      path = uri.path.to_s           # always starts with "/" (may be "")
+      query_frag = +""  # Use unary plus to create unfrozen string
+      query_frag << "?#{uri.query}"   if uri.query
+      query_frag << "##{uri.fragment}" if uri.fragment
+
+      body = path.delete_prefix("/") + query_frag  # strip leading "/" before counting
+      return host_part + "/" if body.empty?     # nothing to redact
+
+      n = body.length
+
+      redacted =
+        if n <= 4                            # 1-4 → replace completely with stars
+          "*" * n
+        elsif n <= 8                         # 5-8 → exactly 4 stars + tail (n-4)
+          "****" + body[-(n - 4)..]
+        else                                 # ≥9 → (n-4) stars + last 4 chars
+          "*" * (n - 4) + body[-4..]
+        end
+
+      "#{host_part}/#{redacted}"
+    rescue URI::InvalidURIError
+      url
     end
 end

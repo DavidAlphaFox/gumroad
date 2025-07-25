@@ -7,9 +7,10 @@ ruby file: ".ruby-version"
 gem "rails", "7.1.3.4"
 gem "rake", "13.2.1"
 
-group :development do
-  gem "derailed_benchmarks", "~> 2.1"
-  gem "stackprof", "~> 0.2"
+group :staging, :production do
+  source "https://gems.contribsys.com/" do
+    gem "sidekiq-pro", "~> 7.2"
+  end
 end
 
 group :development, :test do
@@ -63,6 +64,7 @@ gem "actionpack-cloudflare", "~> 1.1", group: %i[staging production] # Verify th
 gem "activerecord-mysql-index-hint", "~> 0.0"
 gem "active_model_otp", "~> 2.3"
 gem "after_commit_everywhere", "~> 1.3"
+gem "active_hash", "~> 3.3"
 gem "alterity", "~> 1.4"
 gem "ancestry", "~> 4.2"
 gem "apple_id", "~> 1.5"
@@ -95,6 +97,8 @@ gem "elasticsearch-model", "7.1.1"
 gem "elasticsearch-rails", "7.1.1"
 gem "elasticsearch-transport", "7.11.2"
 gem "epub-parser", "~> 0.4"
+gem "benchmark", "~> 0.4"
+gem "ostruct", "~> 0.6"
 gem "flag_shih_tzu", "~> 0.3"
 gem "flipper", "~> 1.3.0"
 gem "flipper-redis", "~> 1.3.0"
@@ -105,7 +109,7 @@ gem "google-apis-androidpublisher_v3", "~> 0.64"
 gem "htmlentities", "~> 4.3"
 gem "http_accept_language", "~> 2.1"
 gem "httparty", "~> 0.21"
-gem "ibandit", "~> 1.12"
+gem "ibandit", "~> 1.26"
 gem "image_sorcery", "~> 1.1"
 gem "image_processing", "~> 1.12"
 gem "mini_magick", "~> 4.12"
@@ -145,7 +149,7 @@ gem "pundit", "~> 2.3"
 gem "public_suffix", "~> 5.0"
 gem "rack-attack", "~> 6.6"
 gem "rack-cors", "~> 2.0"
-gem "rack-mini-profiler", "~> 3.0", require: false
+gem "rack-mini-profiler", "~> 4.0", require: false
 gem "rack-ssl", "~> 1.4"
 gem "rack-timeout", "~> 0.6", require: "rack/timeout/base"
 gem "rack-utf8_sanitizer", "~> 1.8"
@@ -155,8 +159,7 @@ gem "redis", "~> 5.0"
 gem "redis-namespace", "~> 1.10"
 gem "resend", "~> 0.16"
 gem "rinku", "~> 2.0", require: "rails_rinku"
-# TODO(ershad): Update to a normal release once https://github.com/rpush/rpush/pull/675 is released (support for Rails 7.1)
-gem "rpush", github: "rpush/rpush", ref: "12d92519cb090f3b37d654ea206a3f107eab319d"
+gem "rpush", "~> 9.1"
 gem "rpush-redis", "~> 1.2"
 gem "ruby-limiter", "~> 2.2"
 gem "ruby-oembed", "~> 0.16", require: "oembed"
@@ -168,20 +171,13 @@ gem "sendgrid-ruby", "~> 6.6"
 gem "shakapacker", "~> 8.0"
 gem "sidekiq-cron", "~> 1.9"
 gem "suo", "~> 0.4"
-
-if ENV["GUMROAD_SIDEKIQ_PRO_DISABLED"] == "true"
-  gem "sidekiq", "~> 7.2"
-else
-  source "https://gems.contribsys.com/" do
-    gem "sidekiq-pro", "~> 7.2"
-  end
-end
-
+gem "sidekiq", "~> 7.2"
 gem "sidekiq-unique-jobs", "~> 8.0"
 gem "sitemap_generator", "~> 6.3"
 gem "slack-notifier", "~> 2.4"
 gem "sprockets-rails", "~> 3.4", require: "sprockets/railtie"
 gem "ssrf_filter", "~> 1.2.0"
+gem "stackprof", "~> 0.2"
 gem "state_machines-activerecord", "~> 0.8"
 gem "streamio-ffmpeg", "~> 3.0"
 gem "stripe", "~> 12.0"
@@ -190,6 +186,7 @@ gem "subexec", "~> 0.2"
 gem "taxjar-ruby", "~> 3.0", require: "taxjar"
 gem "terser", "~> 1.1"
 gem "twitter", "~> 8.0"
+gem "typhoeus", "~> 1.4"
 gem "valvat", "~> 1.2"
 gem "warden", "~> 1.2"
 gem "webdrivers", "~> 5.2"
@@ -197,5 +194,10 @@ gem "zip-zip", "~> 0.3"
 gem "rouge", "~> 4.0"
 gem "ruby-openai", "~> 7.0"
 gem "anycable-rails", "~> 1.5"
-
 gem "react_on_rails", "~> 14.0"
+gem "psych", "~> 5.2.3"
+
+group :development do
+  gem "derailed_benchmarks", "~> 2.1"
+  gem "bullet"
+end

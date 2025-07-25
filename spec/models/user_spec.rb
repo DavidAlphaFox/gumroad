@@ -747,6 +747,23 @@ describe User, :vcr do
         end
       end
 
+      context "when user has a custom domain" do
+        before do
+          @custom_domain = create(:custom_domain, user: @user)
+        end
+
+        it "marks the custom domain as deleted" do
+          expect do
+            @user.deactivate!
+          end.to change { @custom_domain.reload.deleted_at }.from(nil).to(be_present)
+        end
+
+        it "handles deactivation when custom domain is already deleted" do
+          @custom_domain.mark_deleted!
+          expect { @user.deactivate! }.not_to raise_error
+        end
+      end
+
       context "when the user has active subscriptions" do
         let!(:subscription1) { create(:subscription, link: create(:membership_product), user: @user, free_trial_ends_at: 30.days.from_now) }
         let!(:subscription2) { create(:subscription, link: create(:membership_product), user: @user, free_trial_ends_at: 30.days.from_now) }
@@ -1616,6 +1633,42 @@ describe User, :vcr do
       expect(@user).to receive(:block_seller_ip!)
       @user.flag_for_fraud(author_id: @admin_user.id)
       @user.suspend_for_fraud(author_id: @admin_user.id)
+    end
+
+    context "when user has a custom domain" do
+      before do
+        @custom_domain = create(:custom_domain, user: @user)
+      end
+
+      it "marks custom domain as deleted when suspended for fraud" do
+        @user.flag_for_fraud!(author_id: @admin_user.id)
+
+        expect do
+          @user.suspend_for_fraud!(author_id: @admin_user.id)
+        end.to change { @custom_domain.reload.deleted_at }.from(nil).to(be_present)
+      end
+
+      it "marks custom domain as deleted when suspended for TOS violation" do
+        @user.flag_for_tos_violation!(author_id: @admin_user.id, product_id: @product_1.id)
+
+        expect do
+          @user.suspend_for_tos_violation!(author_id: @admin_user.id)
+        end.to change { @custom_domain.reload.deleted_at }.from(nil).to(be_present)
+      end
+
+      it "handles suspension when custom domain is already deleted" do
+        @custom_domain.mark_deleted!
+        @user.flag_for_fraud!(author_id: @admin_user.id)
+
+        expect { @user.suspend_for_fraud!(author_id: @admin_user.id) }.not_to raise_error
+      end
+
+      it "handles suspension when user has no custom domain" do
+        @custom_domain.destroy!
+        @user.flag_for_fraud!(author_id: @admin_user.id)
+
+        expect { @user.suspend_for_fraud!(author_id: @admin_user.id) }.not_to raise_error
+      end
     end
 
     it "adds a comment when flagging for TOS violation" do
@@ -2563,6 +2616,33 @@ describe User, :vcr do
       @user.save!
       expect(GenerateSubscribePreviewJob).to have_enqueued_sidekiq_job(@user.id)
     end
+
+    it "schedules GenerateSubscribePreviewJob when avatar changes" do
+      # Avatar updates regenerate the preview.
+      @user.avatar.attach(
+        io: fixture_file_upload("smilie.png"),
+        filename: "smilie.png",
+      )
+      expect(GenerateSubscribePreviewJob.jobs.size).to eq(1)
+      expect(GenerateSubscribePreviewJob).to have_enqueued_sidekiq_job(@user.id)
+
+      GenerateSubscribePreviewJob.jobs.clear
+
+      # Updates to other attached fields do not regenerate the preview.
+      @user.subscribe_preview.attach(
+        io: fixture_file_upload("smilie.png"),
+        filename: "new_subscribe_preview.png",
+      )
+      expect(GenerateSubscribePreviewJob.jobs.size).to eq(0)
+
+      # Avatar removal regenerates the preview.
+      # Should ideally use `#purge` but the test environment AWS S3 credentials
+      # do not have access to remove items.
+      @user.avatar = nil
+      @user.save!
+      expect(GenerateSubscribePreviewJob.jobs.size).to eq(1)
+      expect(GenerateSubscribePreviewJob).to have_enqueued_sidekiq_job(@user.id)
+    end
   end
 
   describe "after_save callback to enqueue StripeApplePayDomain jobs" do
@@ -2670,6 +2750,13 @@ describe User, :vcr do
           expect(@user.auto_transcode_videos?).to eq false
         end
       end
+    end
+  end
+
+  describe "#admin_page_url" do
+    it "returns the admin users page url" do
+      user = create(:user)
+      expect(user.admin_page_url).to eq("#{PROTOCOL}://#{DOMAIN}/admin/users/#{user.id}")
     end
   end
 
@@ -2991,7 +3078,7 @@ describe User, :vcr do
     end
   end
 
-  describe "#made_a_successful_sale_with_a_stripe_connect_account?" do
+  describe "#made_a_successful_sale_with_a_stripe_connect_or_paypal_connect_account?" do
     let(:user) { create(:user) }
     let!(:stripe_connect_account) { create(:merchant_account_stripe_connect, user:) }
 
@@ -3002,7 +3089,7 @@ describe User, :vcr do
 
       context "when the Stripe Connect account is alive" do
         it "returns true" do
-          expect(user.made_a_successful_sale_with_a_stripe_connect_account?).to eq(true)
+          expect(user.made_a_successful_sale_with_a_stripe_connect_or_paypal_connect_account?).to eq(true)
         end
       end
 
@@ -3012,7 +3099,7 @@ describe User, :vcr do
         end
 
         it "returns true" do
-          expect(user.made_a_successful_sale_with_a_stripe_connect_account?).to eq(true)
+          expect(user.made_a_successful_sale_with_a_stripe_connect_or_paypal_connect_account?).to eq(true)
         end
       end
     end
@@ -3023,7 +3110,7 @@ describe User, :vcr do
       end
 
       it "returns false" do
-        expect(user.made_a_successful_sale_with_a_stripe_connect_account?).to eq(false)
+        expect(user.made_a_successful_sale_with_a_stripe_connect_or_paypal_connect_account?).to eq(false)
       end
     end
 
@@ -3031,7 +3118,53 @@ describe User, :vcr do
       it "returns false" do
         stripe_connect_account.destroy!
 
-        expect(user.made_a_successful_sale_with_a_stripe_connect_account?).to eq(false)
+        expect(user.made_a_successful_sale_with_a_stripe_connect_or_paypal_connect_account?).to eq(false)
+      end
+    end
+
+    context "when the user has made a successful sale with a PayPal Connect account" do
+      let!(:paypal_connect_account) { create(:merchant_account_paypal, user:) }
+
+      before do
+        create(:purchase, seller: user, link: create(:product, user:), merchant_account: paypal_connect_account)
+      end
+
+      context "when the PayPal Connect account is alive" do
+        it "returns true" do
+          expect(user.made_a_successful_sale_with_a_stripe_connect_or_paypal_connect_account?).to eq(true)
+        end
+      end
+
+      context "when the PayPal Connect account has been deleted" do
+        before do
+          paypal_connect_account.mark_deleted!
+        end
+
+        it "returns true" do
+          expect(user.made_a_successful_sale_with_a_stripe_connect_or_paypal_connect_account?).to eq(true)
+        end
+      end
+    end
+
+    context "when the user has not made a successful sale with a PayPal Connect account" do
+      let!(:paypal_connect_account) { create(:merchant_account_paypal, user:) }
+
+      before do
+        create(:failed_purchase, seller: user, link: create(:product, user:), merchant_account: paypal_connect_account)
+      end
+
+      it "returns false" do
+        expect(user.made_a_successful_sale_with_a_stripe_connect_or_paypal_connect_account?).to eq(false)
+      end
+    end
+
+    context "when the user has no PayPal Connect account" do
+      let!(:paypal_connect_account) { create(:merchant_account_paypal, user:) }
+
+      it "returns false" do
+        paypal_connect_account.destroy!
+
+        expect(user.made_a_successful_sale_with_a_stripe_connect_or_paypal_connect_account?).to eq(false)
       end
     end
   end
@@ -3042,10 +3175,6 @@ describe User, :vcr do
     context "when user has a Stripe Connect account" do
       let!(:stripe_connect_account) { create(:merchant_account_stripe_connect, user:) }
 
-      it "returns true if the Stripe Connect account is alive" do
-        expect(user.eligible_for_abandoned_cart_workflows?).to eq(true)
-      end
-
       it "returns false if the Stripe Connect account has been deleted and there were no linked successful sales" do
         stripe_connect_account.mark_deleted!
 
@@ -3055,6 +3184,23 @@ describe User, :vcr do
       it "returns true if the Stripe Connect account has been deleted and there was at least one successful sale with that Stripe Connect account" do
         create(:purchase, seller: user, link: create(:product, user:), merchant_account: stripe_connect_account)
         stripe_connect_account.mark_deleted!
+
+        expect(user.eligible_for_abandoned_cart_workflows?).to eq(true)
+      end
+    end
+
+    context "when user has a PayPal Connect account" do
+      let!(:paypal_connect_account) { create(:merchant_account_paypal, user:) }
+
+      it "returns false if the PayPal Connect account has been deleted and there were no linked successful sales" do
+        paypal_connect_account.mark_deleted!
+
+        expect(user.eligible_for_abandoned_cart_workflows?).to eq(false)
+      end
+
+      it "returns true if the PayPal Connect account has been deleted and there was at least one successful sale with that PayPal Connect account" do
+        create(:purchase, seller: user, link: create(:product, user:), merchant_account: paypal_connect_account)
+        paypal_connect_account.mark_deleted!
 
         expect(user.eligible_for_abandoned_cart_workflows?).to eq(true)
       end
@@ -3094,10 +3240,6 @@ describe User, :vcr do
           allow(user).to receive(:sales_cents_total).and_return(Installment::MINIMUM_SALES_CENTS_VALUE)
         end
 
-        it "returns true if the Stripe Connect account is alive" do
-          expect(user.eligible_to_send_emails?).to eq(true)
-        end
-
         it "returns false if the Stripe Connect account has been deleted and there were no linked successful sales" do
           stripe_connect_account.mark_deleted!
 
@@ -3107,6 +3249,27 @@ describe User, :vcr do
         it "returns true if the Stripe Connect account has been deleted and there was at least one successful sale with that Stripe Connect account" do
           create(:purchase, seller: user, link: create(:product, user:), merchant_account: stripe_connect_account)
           stripe_connect_account.mark_deleted!
+
+          expect(user.eligible_to_send_emails?).to eq(true)
+        end
+      end
+
+      context "when user has a PayPal Connect account" do
+        let!(:paypal_connect_account) { create(:merchant_account_paypal, user:) }
+
+        before do
+          allow(user).to receive(:sales_cents_total).and_return(Installment::MINIMUM_SALES_CENTS_VALUE)
+        end
+
+        it "returns false if the PayPal Connect account has been deleted and there were no linked successful sales" do
+          paypal_connect_account.mark_deleted!
+
+          expect(user.eligible_to_send_emails?).to eq(false)
+        end
+
+        it "returns true if the PayPal Connect account has been deleted and there was at least one successful sale with that PayPal Connect account" do
+          create(:purchase, seller: user, link: create(:product, user:), merchant_account: paypal_connect_account)
+          paypal_connect_account.mark_deleted!
 
           expect(user.eligible_to_send_emails?).to eq(true)
         end
@@ -3269,6 +3432,25 @@ describe User, :vcr do
         other_product.update!(community_chat_enabled: false)
         expect(user.accessible_communities_ids).to eq([])
       end
+    end
+  end
+
+  describe "#purchased_small_bets?" do
+    let(:user) { create(:user) }
+    let(:small_bets_product) { create(:product) }
+
+    before do
+      allow(GlobalConfig).to receive(:get)
+        .with("SMALL_BETS_PRODUCT_ID", 2866567)
+        .and_return(small_bets_product.id)
+    end
+
+    it "returns true if the user has purchased the small bets product" do
+      expect(user.purchased_small_bets?).to eq(false)
+
+      create(:purchase, purchaser: user, link: small_bets_product)
+
+      expect(user.purchased_small_bets?).to eq(true)
     end
   end
 end

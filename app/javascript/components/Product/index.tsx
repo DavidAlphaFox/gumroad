@@ -109,6 +109,7 @@ export type Product = {
   streamable: boolean;
   is_quantity_enabled: boolean;
   is_multiseat_license: boolean;
+  hide_sold_out_variants?: boolean;
   native_type: ProductNativeType;
   sales_count: number | null;
   summary: string | null;
@@ -142,7 +143,6 @@ export type Purchase = {
   email_digest: string;
   created_at: string;
   review: FormReview | null;
-  video_reviews_enabled: boolean;
   should_show_receipt: boolean;
   is_gift_receiver_purchase: boolean;
   content_url: string | null;
@@ -685,7 +685,6 @@ const ExistingPurchaseStack = ({
             purchaseId={purchase.id}
             review={purchase.review}
             purchaseEmailDigest={purchase.email_digest}
-            videoReviewsEnabled={purchase.video_reviews_enabled}
           />
         ) : null}
       </div>

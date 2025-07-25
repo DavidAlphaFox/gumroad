@@ -527,6 +527,12 @@ describe("Product Edit Scenario", type: :feature, js: true) do
       wait_for_ajax
       expect(page).not_to have_text("Publicly show the number of sales on your product page")
     end
+
+    it "doesn't show the option to change currency code for membership products" do
+      visit "/products/#{@membership_product.unique_permalink}/edit"
+      wait_for_ajax
+      expect(page).not_to have_select("Currency", visible: :all)
+    end
   end
 
   describe "discover notices" do
@@ -737,17 +743,49 @@ describe("Product Edit Scenario", type: :feature, js: true) do
 
   describe "offer code validation" do
     context "when the price invalidates an offer code" do
-      before do
-        create(:offer_code, user: seller, products: [product], code: "bad", amount_cents: 100)
+      context "amount validations" do
+        before do
+          create(:offer_code, user: seller, products: [product], code: "bad", amount_cents: 100)
+        end
+
+        it "displays a warning message" do
+          visit edit_link_path(product.unique_permalink)
+
+          fill_in "Amount", with: "1.50"
+          click_on "Save changes"
+          expect(page).to have_alert(text: "The following offer code discounts this product below $0.99, but not to $0: bad. Please update it or it will not work at checkout.")
+        end
       end
 
-      it "displays a warning message" do
-        visit edit_link_path(product.unique_permalink)
+      context "currency validations" do
+        before do
+          create(:offer_code, user: seller, products: [product], code: "usd", amount_cents: 100)
+        end
 
-        fill_in "Amount", with: "1.50"
-        click_on "Save changes"
-        expect(page).to have_alert(text: "The following offer code discounts this product below $0.99, but not to $0: bad. Please update its amount or it will not work at checkout.")
+        it "displays a warning message" do
+          visit edit_link_path(product.unique_permalink)
+
+          select "£", from: "Currency", visible: false
+          expect(page).to have_select("Currency", selected: "£", visible: false)
+
+          click_on "Save changes"
+          expect(page).to have_alert(text: "The following offer code has currency mismatch with this product: usd. Please update it or it will not work at checkout.")
+          expect(product.reload.price_currency_type).to eq "gbp"
+        end
       end
+    end
+  end
+
+  context "product currency" do
+    it "allows updating currency" do
+      visit edit_link_path(product.unique_permalink)
+
+      select "£", from: "Currency", visible: false
+      expect(page).to have_select("Currency", selected: "£", visible: false)
+
+      click_on "Save changes"
+      wait_for_ajax
+      expect(product.reload.price_currency_type).to eq "gbp"
     end
   end
 
@@ -886,6 +924,103 @@ describe("Product Edit Scenario", type: :feature, js: true) do
 
     product.reload
     expect(product.description).to eq("<p>Hi there!</p><review-card reviewid=\"#{review2.external_id}\"></review-card><review-card reviewid=\"#{review1.external_id}\"></review-card>")
+  end
+
+  describe "Content updates" do
+    before do
+      create(:purchase, link: product)
+      index_model_records(Purchase)
+    end
+
+    context "when non-content update" do
+      let(:product) { create(:product, user: seller, name: "Sample product", price_cents: 1000) }
+
+      it "doesn't allow notifying users" do
+        visit edit_link_path(product.unique_permalink)
+
+        description_input = find("[aria-label='Description']")
+        set_rich_text_editor_input(description_input, to_text: "Hi there!")
+        click_on "Save changes"
+        expect(page).to have_alert(text: "Changes saved!")
+
+        set_rich_text_editor_input(description_input, to_text: "New description")
+        click_on "Save changes"
+        expect(page).to have_alert(text: "Changes saved!")
+        expect(page).not_to have_alert(text: "Changes saved! Would you like to notify your customers about those changes?")
+      end
+    end
+
+    context "product with no variants" do
+      let(:product) { create(:product, user: seller, name: "Sample product", price_cents: 1000) }
+
+      it "allows notifying users" do
+        visit edit_link_path(product.unique_permalink)
+        select_tab "Content"
+
+        editor = find("[aria-label='Content editor']")
+        set_rich_text_editor_input(editor, to_text: "Hi there!")
+
+        click_on "Save changes"
+        expect(page).to have_alert(text: "Changes saved!")
+
+        set_rich_text_editor_input(editor, to_text: "New content")
+        click_on "Save changes"
+        expect(page).to have_alert(text: "Changes saved! Would you like to notify your customers about those changes?")
+
+        new_window = window_opened_by { click_on "Send notification" }
+        within_window new_window do
+          expect(page).to have_field("Title", with: "New content added to #{product.name}")
+          expect(page).to have_radio_button "Customers only", checked: true
+          expect(page).to have_checked_field("Send email")
+          expect(page).to have_unchecked_field("Post to profile")
+          within(:fieldset, "Bought") do
+            expect(page).to have_button(product.name)
+          end
+          within find("[aria-label='Email message']") do
+            expect(page).to have_text("New content has been added to")
+            expect(page).to have_link("#{product.name}", href: product.long_url)
+            expect(page).to have_text("You can access it by visiting your Gumroad Library or through the link in your email receipt.")
+          end
+        end
+      end
+    end
+
+    context "product with variants" do
+      let(:product) { create(:product_with_digital_versions, user: seller, name: "Sample product", price_cents: 1000) }
+
+      it "allows notifying users" do
+        visit edit_link_path(product.unique_permalink)
+        select_tab "Content"
+
+        editor = find("[aria-label='Content editor']")
+        set_rich_text_editor_input(editor, to_text: "Hi there!")
+
+        click_on "Save changes"
+        expect(page).to have_alert(text: "Changes saved!")
+
+        set_rich_text_editor_input(editor, to_text: "New content")
+        click_on "Save changes"
+        expect(page).to have_alert(text: "Changes saved! Would you like to notify your customers about those changes?")
+
+        new_window = window_opened_by { click_on "Send notification" }
+        within_window new_window do
+          expect(page).to have_field("Title", with: "New content added to #{product.name}")
+          expect(page).to have_radio_button "Customers only", checked: true
+          expect(page).to have_checked_field("Send email")
+          expect(page).to have_unchecked_field("Post to profile")
+          within(:fieldset, "Bought") do
+            expect(page).to have_button("#{product.name} - #{product.alive_variants.first.name}")
+            expect(page).not_to have_selector(:button, exact_text: product.name)
+            expect(page).not_to have_button("#{product.name} - #{product.alive_variants.last.name}")
+          end
+          within find("[aria-label='Email message']") do
+            expect(page).to have_text("New content has been added to")
+            expect(page).to have_link("#{product.name}", href: product.long_url)
+            expect(page).to have_text("You can access it by visiting your Gumroad Library or through the link in your email receipt.")
+          end
+        end
+      end
+    end
   end
 
   it "allows toggling the community chat integration on and off" do

@@ -7,6 +7,8 @@ class DiscoverController < ApplicationController
   include ActionView::Helpers::NumberHelper, RecommendationType, CreateDiscoverSearch,
           DiscoverCuratedProducts, SearchProducts, AffiliateCookie
 
+  allow_anonymous_access_to_helper_widget only: [:index]
+
   before_action :set_affiliate_cookie, only: [:index]
 
   def index
@@ -39,6 +41,7 @@ class DiscoverController < ApplicationController
         request:,
         recommended_by: RecommendationType::GUMROAD_SEARCH_RECOMMENDATION,
         target: Product::Layout::DISCOVER,
+        compute_description: false,
         query: params[:query]
       )
     end

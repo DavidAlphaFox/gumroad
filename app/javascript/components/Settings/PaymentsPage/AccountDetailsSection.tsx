@@ -470,7 +470,7 @@ const AccountDetailsSection = ({
               onChange={(evt) => updateComplianceInfo({ updated_country_code: evt.target.value })}
             >
               {Object.entries(countries).map(([code, name]) => (
-                <option key={code} value={code}>
+                <option key={code} value={code} disabled={name.includes("(not supported)")}>
                   {name}
                 </option>
               ))}
@@ -652,6 +652,7 @@ const AccountDetailsSection = ({
               required
               onChange={(evt) => updateComplianceInfo({ first_name: evt.target.value })}
             />
+            <small>Include your middle name if it appears on your ID.</small>
           </fieldset>
           <fieldset className={cx({ danger: errorFieldNames.has("last_name") })}>
             <legend>
@@ -1017,7 +1018,7 @@ const AccountDetailsSection = ({
           }
         >
           {Object.entries(countries).map(([code, name]) => (
-            <option key={code} value={code}>
+            <option key={code} value={code} disabled={name.includes("(not supported)")}>
               {name}
             </option>
           ))}
@@ -1123,7 +1124,7 @@ const AccountDetailsSection = ({
             >
               <option disabled>Nationality</option>
               {Object.entries(countries).map(([code, name]) => (
-                <option key={code} value={code}>
+                <option key={code} value={code} disabled={name.includes("(not supported)")}>
                   {name}
                 </option>
               ))}

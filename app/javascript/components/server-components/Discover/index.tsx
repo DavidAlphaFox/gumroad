@@ -1,4 +1,4 @@
-import { range } from "lodash";
+import range from "lodash/range";
 import * as React from "react";
 import { createCast, is } from "ts-safe-cast";
 
@@ -14,7 +14,6 @@ import { register } from "$app/utils/serverComponentUtil";
 
 import { Layout } from "$app/components/Discover/Layout";
 import { RecommendedWishlists } from "$app/components/Discover/RecommendedWishlists";
-import { Footer } from "$app/components/Home/Footer";
 import { Icon } from "$app/components/Icons";
 import { HorizontalCard } from "$app/components/Product/Card";
 import { CardGrid, useSearchReducer } from "$app/components/Product/CardGrid";
@@ -98,8 +97,10 @@ const Discover = (props: Props) => {
   const parseUrlParams = (href: string) => {
     const url = new URL(href);
     const parsedParams: SearchRequest = {
-      taxonomy: url.pathname === "/" ? undefined : url.pathname.replace("/", ""),
-      curated_product_ids: props.curated_product_ids.slice(url.pathname === "/" ? recommendedProductsCount : 0),
+      taxonomy: url.pathname === Routes.discover_path() ? undefined : url.pathname.replace("/", ""),
+      curated_product_ids: props.curated_product_ids.slice(
+        url.pathname === Routes.discover_path() ? recommendedProductsCount : 0,
+      ),
     };
 
     function parseParams<T extends keyof SearchRequest>(keys: T[], transform: (value: string) => SearchRequest[T]) {
@@ -125,8 +126,11 @@ const Discover = (props: Props) => {
     if (!fromUrl.current) {
       // don't pushState if we're already loading from history state
       const url = new URL(window.location.href);
-      if (state.params.taxonomy) url.pathname = state.params.taxonomy;
-      else url.pathname = "/";
+      if (state.params.taxonomy) {
+        url.pathname = state.params.taxonomy;
+      } else if (url.pathname !== Routes.discover_path()) {
+        url.pathname = Routes.discover_path();
+      }
       const serializeParams = <T extends keyof SearchRequest>(
         keys: T[],
         transform: (value: NonNullable<SearchRequest[T]>) => string,
@@ -304,7 +308,6 @@ const Discover = (props: Props) => {
           />
         ) : null}
       </div>
-      <Footer />
     </Layout>
   );
 };

@@ -15,27 +15,10 @@ GIT
       omniauth (~> 2.0)
       omniauth-oauth2 (~> 1.4)
 
-GIT
-  remote: https://github.com/rpush/rpush.git
-  revision: 12d92519cb090f3b37d654ea206a3f107eab319d
-  ref: 12d92519cb090f3b37d654ea206a3f107eab319d
-  specs:
-    rpush (9.0.0)
-      activesupport (>= 6.0, < 7.2.0, != 7.1.4)
-      googleauth
-      jwt (>= 1.5.6)
-      multi_json (~> 1.0)
-      net-http-persistent
-      net-http2 (~> 0.18, >= 0.18.3)
-      railties
-      rainbow
-      thor (>= 0.18.1, < 2.0)
-      web-push
-
 GEM
   remote: https://gems.contribsys.com/
   specs:
-    sidekiq-pro (7.3.0)
+    sidekiq-pro (7.3.3)
       sidekiq (>= 7.3.0, < 8)
 
 GEM
@@ -98,10 +81,12 @@ GEM
       erubi (~> 1.11)
       rails-dom-testing (~> 2.2)
       rails-html-sanitizer (~> 1.6)
+    active_hash (3.3.1)
+      activesupport (>= 5.0.0)
     active_model_otp (2.3.4)
       activemodel
       rotp (~> 6.3.0)
-    active_record_query_trace (1.8.2)
+    active_record_query_trace (1.8.3)
       activerecord (>= 6.0.0)
     activejob (7.1.3.4)
       activesupport (= 7.1.3.4)
@@ -205,6 +190,7 @@ GEM
       execjs (~> 2.0)
     base64 (0.2.0)
     bcrypt (3.1.20)
+    benchmark (0.4.1)
     benchmark-ips (2.13.0)
     bigdecimal (3.1.8)
     bindata (2.5.0)
@@ -213,11 +199,14 @@ GEM
     braintree (4.21.0)
       builder (>= 3.2.4)
       rexml (>= 3.1.9)
-    bson (5.0.1)
+    bson (5.1.1)
     buftok (0.3.0)
     bugsnag (6.27.1)
       concurrent-ruby (~> 1.0)
     builder (3.3.0)
+    bullet (8.0.8)
+      activesupport (>= 3.0.0)
+      uniform_notifier (~> 1.11)
     byebug (11.1.3)
     capybara (3.40.0)
       addressable
@@ -234,7 +223,7 @@ GEM
     coderay (1.1.3)
     color (1.8)
     colorize (1.1.0)
-    concurrent-ruby (1.3.4)
+    concurrent-ruby (1.3.5)
     connection_pool (2.4.1)
     cookiejar (0.3.4)
     countries (6.0.1)
@@ -333,6 +322,8 @@ GEM
     erubi (1.13.0)
     et-orbi (1.2.11)
       tzinfo
+    ethon (0.16.0)
+      ffi (>= 1.15.0)
     event_emitter (0.2.6)
     event_stream_parser (1.0.0)
     eventmachine (1.2.7)
@@ -371,10 +362,6 @@ GEM
     faraday_middleware (1.2.0)
       faraday (~> 1.0)
     ffi (1.17.0)
-    ffi (1.17.0-arm64-darwin)
-    ffi (1.17.0-x86_64-darwin)
-    ffi (1.17.0-x86_64-linux-gnu)
-    ffi (1.17.0-x86_64-linux-musl)
     ffi-compiler (1.3.2)
       ffi (>= 1.15.5)
       rake
@@ -470,9 +457,9 @@ GEM
       mini_mime (>= 1.0.0)
       multi_xml (>= 0.5.2)
     httpclient (2.8.3)
-    i18n (1.14.5)
+    i18n (1.14.7)
       concurrent-ruby (~> 1.0)
-    ibandit (1.21.0)
+    ibandit (1.26.1)
       i18n
     image_processing (1.13.0)
       mini_magick (>= 4.9.5, < 5)
@@ -610,12 +597,6 @@ GEM
     nokogiri (1.16.7)
       mini_portile2 (~> 2.8.2)
       racc (~> 1.4)
-    nokogiri (1.16.7-arm64-darwin)
-      racc (~> 1.4)
-    nokogiri (1.16.7-x86_64-darwin)
-      racc (~> 1.4)
-    nokogiri (1.16.7-x86_64-linux)
-      racc (~> 1.4)
     oauth (1.1.0)
       oauth-tty (~> 1.0, >= 1.0.1)
       snaky_hash (~> 2.0)
@@ -670,6 +651,7 @@ GEM
       ffi
     orm_adapter (0.5.0)
     os (1.1.4)
+    ostruct (0.6.1)
     package_json (0.1.0)
     pagy (9.0.5)
     paper_trail (15.1.0)
@@ -719,7 +701,8 @@ GEM
       pry (>= 0.13, < 0.15)
     pry-rails (0.3.11)
       pry (>= 0.13.0)
-    psych (5.1.2)
+    psych (5.2.3)
+      date
       stringio
     public_suffix (5.1.1)
     puffing-billy (4.0.0)
@@ -742,7 +725,7 @@ GEM
       rack (>= 1.0, < 4)
     rack-cors (2.0.2)
       rack (>= 2.0.0)
-    rack-mini-profiler (3.3.1)
+    rack-mini-profiler (4.0.0)
       rack (>= 1.2.0)
     rack-oauth2 (1.21.3)
       activesupport
@@ -845,6 +828,17 @@ GEM
     rinku (2.0.6)
     rotp (6.3.0)
     rouge (4.3.0)
+    rpush (9.2.0)
+      activesupport (>= 6.0, != 7.2.1, != 7.2.0, != 7.1.4)
+      googleauth
+      jwt (>= 1.5.6)
+      multi_json (~> 1.0)
+      net-http-persistent
+      net-http2 (~> 0.18, >= 0.18.3)
+      railties
+      rainbow
+      thor (>= 0.18.1, < 2.0)
+      web-push
     rpush-redis (1.2.0)
       modis (>= 3.0, < 5.0)
     rspec (3.13.0)
@@ -1038,11 +1032,14 @@ GEM
       multipart-post (~> 2.4)
       naught (~> 1.1)
       simple_oauth (~> 0.3.0)
+    typhoeus (1.4.1)
+      ethon (>= 0.9.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     uber (0.1.0)
     unaccent (0.4.0)
     unicode-display_width (2.5.0)
+    uniform_notifier (1.17.0)
     validate_email (0.1.6)
       activemodel (>= 3.0)
       mail (>= 2.2.5)
@@ -1100,6 +1097,7 @@ DEPENDENCIES
   acme-client (~> 2.0)
   actionpack-action_caching (~> 1.2)
   actionpack-cloudflare (~> 1.1)
+  active_hash (~> 3.3)
   active_model_otp (~> 2.3)
   active_record_query_trace (~> 1.8)
   activerecord-mysql-index-hint (~> 0.0)
@@ -1115,10 +1113,12 @@ DEPENDENCIES
   aws-sdk-sns (~> 1.57)
   aws-sdk-sqs (~> 1.69)
   babel-transpiler (~> 0.7)
+  benchmark (~> 0.4)
   bootsnap (~> 1.15)
   braintree (~> 4.9)
   bugsnag (~> 6.25)
   builder (~> 3.2)
+  bullet
   bundler
   byebug (~> 11.1)
   capybara (~> 3.38)
@@ -1157,7 +1157,7 @@ DEPENDENCIES
   htmlentities (~> 4.3)
   http_accept_language (~> 2.1)
   httparty (~> 0.21)
-  ibandit (~> 1.12)
+  ibandit (~> 1.26)
   image_processing (~> 1.12)
   image_sorcery (~> 1.1)
   jbuilder (~> 2.11)
@@ -1183,6 +1183,7 @@ DEPENDENCIES
   omniauth-rails_csrf_protection (~> 1.0)
   omniauth-stripe-connect!
   omniauth-twitter (~> 1.4)
+  ostruct (~> 0.6)
   pagy (~> 9.0.0)
   paper_trail (~> 15.0)
   paypal-checkout-sdk (~> 1.0)
@@ -1195,13 +1196,14 @@ DEPENDENCIES
   private_address_check (~> 0.5)
   pry-byebug (~> 3.10)
   pry-rails (~> 0.3)
+  psych (~> 5.2.3)
   public_suffix (~> 5.0)
   puffing-billy (~> 4.0.0)
   puma (= 6.4.2)
   pundit (~> 2.3)
   rack-attack (~> 6.6)
   rack-cors (~> 2.0)
-  rack-mini-profiler (~> 3.0)
+  rack-mini-profiler (~> 4.0)
   rack-ssl (~> 1.4)
   rack-timeout (~> 0.6)
   rack-utf8_sanitizer (~> 1.8)
@@ -1216,7 +1218,7 @@ DEPENDENCIES
   resend (~> 0.16)
   rinku (~> 2.0)
   rouge (~> 4.0)
-  rpush!
+  rpush (~> 9.1)
   rpush-redis (~> 1.2)
   rspec (~> 3.12)
   rspec-github (~> 2.4.0)
@@ -1239,6 +1241,7 @@ DEPENDENCIES
   sendgrid-ruby (~> 6.6)
   shakapacker (~> 8.0)
   shoulda-matchers (~> 6.0)
+  sidekiq (~> 7.2)
   sidekiq-cron (~> 1.9)
   sidekiq-pro (~> 7.2)!
   sidekiq-unique-jobs (~> 8.0)
@@ -1259,6 +1262,7 @@ DEPENDENCIES
   taxjar-ruby (~> 3.0)
   terser (~> 1.1)
   twitter (~> 8.0)
+  typhoeus (~> 1.4)
   valvat (~> 1.2)
   vcr (~> 6.1)
   warden (~> 1.2)
@@ -1267,7 +1271,7 @@ DEPENDENCIES
   zip-zip (~> 0.3)
 
 RUBY VERSION
-   ruby 3.3.4p94
+   ruby 3.4.3p32
 
 BUNDLED WITH
    2.5.10

@@ -44,6 +44,7 @@ describe CreatorHomePresenter do
           "first_payout" => true,
           "first_product" => false,
           "first_sale" => false,
+          "purchased_small_bets" => false,
         }
       )
     end
@@ -68,6 +69,7 @@ describe CreatorHomePresenter do
           "first_payout" => true,
           "first_product" => true,
           "first_sale" => true,
+          "purchased_small_bets" => false,
         }
       )
     end
@@ -108,6 +110,25 @@ describe CreatorHomePresenter do
           },
         ]
       )
+    end
+
+    it "excludes soft-deleted thumbnails from product data" do
+      # TODO(tech debt): Remove the top-level travel_to.
+      travel_back
+
+      product1 = create(:product, user: seller)
+      product2 = create(:product, user: seller)
+      thumbnail1 = create(:thumbnail, product: product1)
+      thumbnail2 = create(:thumbnail, product: product2)
+      thumbnail1.mark_deleted!
+
+      sales_data = presenter.creator_home_props[:sales]
+
+      product1_data = sales_data.find { |s| s["id"] == product1.unique_permalink }
+      product2_data = sales_data.find { |s| s["id"] == product2.unique_permalink }
+
+      expect(product1_data["thumbnail"]).to be_nil
+      expect(product2_data["thumbnail"]).to eq(thumbnail2.url)
     end
 
     it "shows the 3 most sold products in past 30 days", :sidekiq_inline, :elasticsearch_wait_for_refresh do

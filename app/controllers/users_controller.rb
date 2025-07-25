@@ -175,7 +175,37 @@ class UsersController < ApplicationController
     end
 
     def set_user_for_action
-      @user = User.find_by_external_id!(params[:id])
+      @user = User.find_by_secure_external_id(params[:id], scope: "email_unsubscribe")
+      return if @user.present?
+
+      if user_signed_in? && logged_in_user.external_id == params[:id]
+        @user = logged_in_user
+      else
+        user = User.find_by_external_id(params[:id])
+        if user.present?
+          destination_url = user_unsubscribe_url(id: user.secure_external_id(scope: "email_unsubscribe", expires_at: 2.days.from_now), email_type: params[:email_type])
+
+          # Bundle confirmation_text and destination into a single encrypted payload
+          secure_payload = {
+            destination: destination_url,
+            confirmation_texts: [user.email],
+            created_at: Time.current.to_i
+          }
+          encrypted_payload = SecureEncryptService.encrypt(secure_payload.to_json)
+
+          message = "Please enter your email address to unsubscribe"
+          error_message = "Email address does not match"
+          field_name = "Email address"
+
+          redirect_to secure_url_redirect_path(
+            encrypted_payload: encrypted_payload,
+            message: message,
+            field_name: field_name,
+            error_message: error_message
+          )
+          return
+        end
+      end
 
       e404 if @user.nil?
     end
